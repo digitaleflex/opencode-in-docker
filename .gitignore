@@ -1,0 +1,8 @@
+# Secrets — jamais commités
+.env
+.env.*
+!.env.example
+
+# État local
+workspace/
+*.log

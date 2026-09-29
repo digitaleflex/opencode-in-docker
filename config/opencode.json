@@ -1,0 +1,58 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  "autoupdate": false,
+  "share": "disabled",
+  "shell": "bash",
+
+  "instructions": ["AGENTS.md", ".rules/*.md"],
+
+  "plugins": [
+    "*",
+    "-opencode.provider.*",
+    "opencode.provider.openai",
+    "opencode.provider.anthropic",
+    "opencode.provider.google"
+  ],
+
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 10000
+  },
+
+  "subagent_depth": 1,
+
+  "watcher": {
+    "ignore": [
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      ".git/**",
+      ".next/**",
+      "target/**",
+      "__pycache__/**",
+      "*.min.js",
+      "*.map",
+      "coverage/**",
+      "vendor/**"
+    ]
+  },
+
+  "permission": {
+    "*": "allow",
+    "bash": {
+      "*": "allow",
+      "rm -rf /*": "deny",
+      "rm -rf ~*": "deny",
+      "rm -rf /home*": "deny",
+      "rm -rf /root*": "deny",
+      "rm -rf ..*": "deny",
+      "mkfs*": "deny",
+      "dd *": "deny",
+      "sudo *": "deny",
+      ":(){:|:&};:*": "deny"
+    },
+    "doom_loop": "deny"
+  }
+}
