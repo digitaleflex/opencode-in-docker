@@ -17,11 +17,8 @@
 
   "compaction": {
     "auto": true,
-    "prune": true,
     "reserved": 10000
   },
-
-  "subagent_depth": 1,
 
   "watcher": {
     "ignore": [
@@ -41,6 +38,15 @@
 
   "permission": {
     "*": "allow",
+
+    "read": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*.env.example": "allow"
+    },
+    "edit": "allow",
+
     "bash": {
       "*": "allow",
       "rm -rf /*": "deny",
@@ -53,6 +59,11 @@
       "sudo *": "deny",
       ":(){:|:&};:*": "deny"
     },
-    "doom_loop": "deny"
+
+    "task": { "*": "allow" },
+    "external_directory": "ask",
+    "webfetch": "ask",
+    "websearch": "ask",
+    "doom_loop": "ask"
   }
 }
