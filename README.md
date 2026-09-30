@@ -82,6 +82,49 @@ décrit que le bac à sable monté par défaut ; il est remplacé dès que
 > Vérifier ce qui est réellement chargé : le conteneur doit voir le fichier
 > dans `/projects/<nom-du-dossier>/AGENTS.md`.
 
+## Subagents & parallélisme
+
+### Agents disponibles (vérifié sur 2.0.18)
+
+| Agent | Type | Usage |
+|---|---|---|
+| `build` | primaire | défaut, bascule avec **Tab** |
+| `plan` | primaire | analyse lecture seule, **Tab** |
+| `general` | subagent | `@general …` |
+| `explore` | subagent | `@explore …` (lecture seule) |
+| `review` | subagent | `@review …` (relecture, cf. `config/agents/`) |
+| `compaction`, `title`, `summary` | système | automatiques, masqués |
+
+`scout`, cité dans la documentation officielle, **n'existe pas en 2.0.18**.
+
+Contrôle : `GET /api/agent` sur le serveur (8 agents). Attention :
+`opencode debug agents` ne liste que les agents **personnalisés** et affiche
+`[]` tant que vous n'en avez pas créé.
+
+### Parallélisme
+
+Le modèle peut enchaîner plusieurs appels `task` dans un même tour : les
+subagents tournent alors **concurremment**, pas l'un après l'autre.
+
+Vérifié : deux subagents `explore` lancés depuis la même session parent ont
+terminé à **83 ms** d'intervalle (sessions enfants de même parent).
+
+> ⚠️ **Coût** : chaque subagent = session enfant = requêtes supplémentaires.
+> Deux appels simultanés **doublent le débit** — sur un modèle gratuit
+> (`:free`), c'est le chemin direct vers un `429`. En cas de coupure :
+> `/models` pour changer de modèle **en conservant la conversation**.
+
+### Navigation entre sessions (documentation officielle)
+
+| Raccourci | Action |
+|---|---|
+| `Leader` + `↓` | entrer dans la première session enfant |
+| `←` / `→` | circuler entre sessions enfants |
+| `↑` | revenir à la session parent |
+
+> Raccourcis issus de la doc OpenCode — à confirmer dans le TUI via la
+> palette de commandes.
+
 ## Ce qui est isolé
 
 | Host | Conteneur | Type |
