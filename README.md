@@ -61,6 +61,27 @@ Puis relancer. Le projet est monté dans `/projects/<nom-du-dossier>`
 > ⚠️ Perf WSL2 : les bind-mounts Windows sont plus lents en IO. Pour du lourd,
 > copie le projet dans `workspace/` (volume local) ou travaille depuis WSL.
 
+## Instructions de l'agent (AGENTS.md)
+
+La config charge deux emplacements, **relatifs au dossier ouvert** :
+
+```json
+"instructions": ["AGENTS.md", ".rules/*.md"]
+```
+
+| Entrée | Rôle | Sans fichier |
+|---|---|---|
+| `AGENTS.md` | description du projet : stack, commandes réelles, architecture, conventions | l'agent travaille à l'aveugle |
+| `.rules/*.md` | règles découpées (sécurité, style…) | ignoré silencieusement |
+
+**Chaque projet ouvert avec OpenCode doit avoir son propre `AGENTS.md` à la
+racine**, versionné dans son dépôt. Le `workspace/AGENTS.md` livré ici ne
+décrit que le bac à sable monté par défaut ; il est remplacé dès que
+`PROJECT_DIR` pointe ailleurs.
+
+> Vérifier ce qui est réellement chargé : le conteneur doit voir le fichier
+> dans `/projects/<nom-du-dossier>/AGENTS.md`.
+
 ## Ce qui est isolé
 
 | Host | Conteneur | Type |

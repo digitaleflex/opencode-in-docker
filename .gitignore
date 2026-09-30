@@ -4,5 +4,8 @@
 !.env.example
 
 # État local
-workspace/
+# (workspace/* et non workspace/ : un dossier entièrement ignoré ne permet
+# pas de ré-inclure un fichier — cf. règle de réintégration de git)
+workspace/*
+!workspace/AGENTS.md
 *.log
