@@ -1,0 +1,9 @@
+# Fichiers exécutés ou parsés par Linux dans le conteneur : LF partout.
+# Sans ça, git réécrit les fins de ligne à chaque « touch » sous Windows
+# et émet un warning à chaque commit (voir issue #4).
+* text=auto eol=lf
+
+# Windows a besoin de CRLF pour s'exécuter (aucun dans le dépôt aujourd'hui,
+# règle conservée pour ne pas casser un futur .bat/.cmd).
+*.bat text eol=crlf
+*.cmd text eol=crlf
