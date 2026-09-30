@@ -39,8 +39,12 @@ docker compose run --rm opencode
 # 3. One-shot (prompt unique)
 docker compose run --rm opencode run "explique ce projet"
 
-# 4. Mode serveur web (http://localhost:4096)
-docker compose run --rm -p 4096:4096 opencode serve --hostname 0.0.0.0
+# 4. Mode serveur long-lived (http://localhost:4096)
+#    Une seule instance qui vit en continu : plus de conteneur recréé
+#    à chaque session = pas de coupure en cours de génération.
+docker compose --profile serve up -d opencode-serve
+docker compose --profile serve ps     # état
+docker compose --profile serve down   # arrêt
 ```
 
 ## Monter un vrai projet
@@ -115,7 +119,12 @@ docker compose build              # reconstruire après modif du Dockerfile
 docker compose down               # arrêter (conserve les volumes)
 docker compose down -v            # arrêter + purger l'état
 docker compose run --rm opencode debug config   # vérifier la config résolue
+docker compose run --rm opencode debug agents   # agents/subagents résolus
 docker compose logs               # logs
+
+# Serveur long-lived (sessions qui survivent, liste des modèles dispo)
+docker compose --profile serve up -d opencode-serve
+docker compose --profile serve down
 ```
 
 ## Plugins globaux
