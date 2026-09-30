@@ -55,7 +55,8 @@ Dans `.env` :
 PROJECT_DIR=C:\Users\PC\Documents\GitHub\mon-projet
 ```
 
-Puis relancer. Le projet est monté dans `/work` (répertoire de travail du conteneur).
+Puis relancer. Le projet est monté dans `/projects/<nom-du-dossier>`
+(aussi le `working_dir` du conteneur — c'est ce nom que le TUI affiche).
 
 > ⚠️ Perf WSL2 : les bind-mounts Windows sont plus lents en IO. Pour du lourd,
 > copie le projet dans `workspace/` (volume local) ou travaille depuis WSL.
@@ -65,24 +66,49 @@ Puis relancer. Le projet est monté dans `/work` (répertoire de travail du cont
 | Host | Conteneur | Type |
 |---|---|---|
 | `./config/opencode.json` | `/config/opencode.json` | bind, **lecture seule** |
-| `./workspace` (ou `PROJECT_DIR`) | `/work` | bind, RW |
-| — | `/home/opencode/.local/share/opencode` | volume nommé `oc-data` (sessions + auth) |
-| — | `/home/opencode/.cache/opencode` | volume nommé `oc-cache` (plugins) |
-| `.env` (clé API) | injecté à l'exécution | `env_file`, jamais dans l'image |
+| `./workspace` (ou `PROJECT_DIR`) | `/projects/<nom-du-dossier>` | bind, RW |
+| — | `/home/opencode/.local/share/opencode` | volume `oc-data` (sessions + base SQLite) |
+| — | `/home/opencode/.cache/opencode` | volume `oc-cache` (plugins npm) |
+| — | `/home/opencode/.config/opencode` | volume `oc-config` (config globale, **auth**, agents) |
+| `.env` (clés API) | injecté à l'exécution | `env_file`, jamais dans l'image |
 
-Rien d'autre du host n'est visible depuis le conteneur.
+Rien d'autre du host n'est visible depuis le conteneur. Les credentials
+OpenCode Console sont dans `oc-config/service.json` (pas dans `oc-data`).
 
-## Sécurité (bonnes pratiques appliquées)
+## Sécurité (état réel)
 
-- **Utilisateur non-root** : `uid=1000(opencode)` (l'image officielle tourne en root)
-- **`no-new-privileges`** : pas d'élévation de privilèges possible
-- **Permissions strictes** via `config/opencode.json` :
-  - `"*": "ask"` → chaque action demande validation
-  - whitelist : `git status/diff/log`, `npm test`, `rg`, `ls`, `cat`
-  - `deny` : `rm -rf *`, `sudo *`, tout accès hors `/work` (`external_directory`)
-- **Config en lecture seule** : l'agent ne peut pas se modifier sa propre config
-- **`share: "disabled"`** + **`autoupdate: false`** : rien ne sort, rien ne se met à jour tout seul
-- **Clés hors image** : `.env` est gitignoré, injecté au runtime uniquement
+Trois couches, de la plus structurelle à la plus souple :
+
+**1. Le conteneur — la vraie barrière.** Seuls les montages ci-dessus sont
+accessibles, sous Alpine, sans aucun accès au reste du host.
+
+**2. L'utilisateur.** `uid=1000(opencode)`, jamais root au démarrage.
+`no-new-privileges` est **volontairement absent** (`security_opt: []`) :
+il bloquerait l'escalade `sudo` dont le Dockerfile dote le compte.
+L'isolation ne repose donc **pas** sur les permissions OpenCode.
+
+**3. Les permissions OpenCode (`config/opencode.json`).** Mode permissif par
+défaut, avec des denys ciblés :
+
+| Clé | Valeur | Effet |
+|---|---|---|
+| `"*"` | `allow` | tout est autorisé sans demande (mode agent) |
+| `bash` | 9 × `deny` | `rm -rf /*`, `rm -rf ~*`, `/home*`, `/root*`, `..*`, `mkfs*`, `dd *`, **`sudo *`**, fork-bomb |
+| `read` | `deny` sur `*.env` / `*.env.*` | l'agent ne lit pas tes clés (`.env.example` reste lisible) |
+| `task` | `allow` | subagents autorisés |
+| `external_directory`, `webfetch`, `websearch`, `doom_loop` | `ask` | validation humaine |
+
+> ⚠️ **Limites assumées.** Les règles `bash` sont des **matchs de chaîne** :
+> `rm -fr`, `bash -c "…"`, `command rm` les contournent. Ce sont des
+> garde-fous, pas une sandbox — la sécurité vient du point 1.
+> Vérifier la config réellement résolue :
+> `docker compose run --rm opencode debug config`.
+
+Aussi en place :
+
+- **Config montée en lecture seule** : l'agent ne peut pas modifier sa propre config
+- **`share: "disabled"`** + **`autoupdate: false`** : rien ne sort, rien ne se met à jour seul
+- **Clés hors image** : `.env` est gitignoré (vérifié : `git check-ignore`), injecté au runtime uniquement
 
 ## Purge totale
 
@@ -165,24 +191,30 @@ docker compose run --rm opencode plugin list
 
 | Rôle | User | Accès | Usage |
 |---|---|---|---|
-| **agent** (défaut) | `opencode` (uid 1000) | YOLO : tout allow dans OpenCode | sessions normales |
-| **root** | `root` | `sudo -i` / `sudo <cmd>` — **aucun mot de passe** | opérations système |
-| **root direct** | `root` | `docker compose run --rm --user root opencode ...` | hors agent |
+| **agent** (défaut) | `opencode` (uid 1000) | tout `allow` dans OpenCode, **mais `"sudo *": "deny"`** | sessions normales |
+| **root** | `root` | `docker compose run --rm --user root opencode …` | opérations système |
 
-- `sudoers.d/opencode` : `NOPASSWD:ALL` (image Dockerfile)
-- `no-new-privileges` **retiré volontairement** (il bloquerait sudo)
-- Isolation = conteneur + `/work` monté uniquement — pas les permissions OpenCode
+Deux niveaux à ne pas confondre :
+
+- **Niveau OS** : `sudoers.d/opencode` donne `NOPASSWD:ALL`. **Testé** :
+  `sudo id`, `sudo -n true`, `sudo -i id` → tous root OK.
+- **Niveau agent OpenCode** : `config/opencode.json` pose `"sudo *": "deny"` —
+  l'agent ne peut **pas** s'élever. C'est volontaire : root ne s'obtient
+  qu'en dehors de l'agent, au lancement du conteneur.
+
+Autres points :
+
+- `no-new-privileges` retiré volontairement (bloquerait l'escalade) — cf. *Sécurité*
+- Isolation = conteneur + seuls montages, **pas** les permissions OpenCode — idem
 - Identité git système : `opencode-agent <agent@opencode.local>` + `safe.directory *`
-
-**Testé** : `sudo id`, `sudo -n true`, `sudo -i id` → tous root OK.
 
 ## Persistance (survit aux redémarrages)
 
 | Donnée | Volume | Survit à `down` | Survit à `down -v` | Survit à redémarrage PC |
 |---|---|---|---|---|
-| Sessions + auth | `oc-data` | ✅ | ❌ | ✅ |
+| Sessions + base SQLite | `oc-data` | ✅ | ❌ | ✅ |
 | Plugins npm | `oc-cache` | ✅ | ❌ | ✅ |
-| Config globale | `oc-config` | ✅ | ❌ | ✅ |
+| Config globale, **auth**, agents | `oc-config` | ✅ | ❌ | ✅ |
 | Config (host) | `./config/` | ✅ | ✅ | ✅ |
 | Projet | `${PROJECT_DIR}` | ✅ | ✅ | ✅ |
 
@@ -190,7 +222,7 @@ Volumes nommés Docker = persistants par nature. Seul `down -v` les supprime.
 Testé : marqueur écrit → `down` → volumes intacts → marqueur relu ✅.
 
 Lancement par répertoire : le wrapper `opencode.bat` capture `%CD%` →
-monté dans `/work` du conteneur (testé depuis un repo GitHub ✅).
+monté dans `/projects/<nom-du-dossier>` (testé depuis un repo GitHub ✅).
 
 ## Dépannage
 
