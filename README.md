@@ -58,8 +58,29 @@ PROJECT_DIR=C:\Users\PC\Documents\GitHub\mon-projet
 Puis relancer. Le projet est monté dans `/projects/<nom-du-dossier>`
 (aussi le `working_dir` du conteneur — c'est ce nom que le TUI affiche).
 
-> ⚠️ Perf WSL2 : les bind-mounts Windows sont plus lents en IO. Pour du lourd,
-> copie le projet dans `workspace/` (volume local) ou travaille depuis WSL.
+> ⚠️ **Perf — coût mesuré du montage Windows.** Mesuré dans le conteneur
+> (500 fichiers créés puis lus, timer `EPOCHREALTIME`) :
+>
+> | Chemin | Écriture 500 | Lecture 500 |
+> |---|---|---|
+> | `/projects/workspace` (bind-mount Windows) | **9 349 ms** | **3 018 ms** |
+> | `/tmp` (Linux natif) | 92 ms | 9 ms |
+> | volume `oc-data` (Docker) | 106 ms | 8 ms |
+>
+> → **~100× en écriture**, **~350× en lecture** sur du travail à petits
+> fichiers (git, `node_modules`, lint). Trois leviers :
+>
+> 1. **Serveur long-lived** — `docker compose up -d` supprime les 3-5 s de
+>    démarrage par session (livré, `compose.serve.yml`).
+> 2. **Monter le projet depuis WSL** — `PROJECT_DIR=\\wsl$\<distro>\…` ou
+>    lancer depuis WSL. Nécessite l'intégration WSL de Docker Desktop
+>    (aujourd'hui `EnableIntegrationWithDefaultWslDistro: false`, et
+>    l'erreur `distro-services/ubuntu.sock` en cas d'essai).
+> 3. **Garder l'état dans les volumes nommés** — `oc-data`, `oc-cache` et
+>    `oc-config` sont déjà en Linux natif.
+>
+> Copier le projet dans `workspace/` **n'apporte rien** : c'est le même type
+> de montage Windows.
 
 ## Instructions de l'agent (AGENTS.md)
 
