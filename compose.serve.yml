@@ -39,6 +39,7 @@ services:
       - oc-cache:/home/opencode/.cache/opencode
       - oc-config:/home/opencode/.config/opencode
       - ./config/opencode.json:/config/opencode.json:ro
+      - ./config/agents:/home/opencode/.config/opencode/agents:ro
       - "${PROJECT_DIR:-./workspace}:/projects/${OC_NAME:-workspace}"
 
     security_opt: []

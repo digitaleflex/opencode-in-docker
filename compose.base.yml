@@ -43,6 +43,8 @@ services:
       - oc-config:/home/opencode/.config/opencode      # config globale, agents
       # Config versionnée montée en lecture seule (l'agent ne la modifie pas)
       - ./config/opencode.json:/config/opencode.json:ro
+      # Agents custom versionnés (montés par-dessus le volume oc-config)
+      - ./config/agents:/home/opencode/.config/opencode/agents:ro
       # Projet monté sous son nom réel
       - "${PROJECT_DIR:-./workspace}:/projects/${OC_NAME:-workspace}"
 
