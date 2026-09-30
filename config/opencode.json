@@ -5,6 +5,8 @@
   "share": "disabled",
   "shell": "bash",
 
+  "model": "openrouter/cohere/north-mini-code:free",
+
   "instructions": ["AGENTS.md", ".rules/*.md"],
 
   "plugins": [
