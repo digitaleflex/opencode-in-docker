@@ -39,12 +39,12 @@ docker compose run --rm opencode
 # 3. One-shot (prompt unique)
 docker compose run --rm opencode run "explique ce projet"
 
-# 4. Mode serveur long-lived (http://localhost:4096)
+# 4. Serveur long-lived (http://localhost:4096) — service par défaut
 #    Une seule instance qui vit en continu : plus de conteneur recréé
 #    à chaque session = pas de coupure en cours de génération.
-docker compose --profile serve up -d opencode-serve
-docker compose --profile serve ps     # état
-docker compose --profile serve down   # arrêt
+docker compose up -d               # démarrage
+docker compose ps                  # état
+docker compose down                # arrêt (conserve les volumes)
 ```
 
 ## Monter un vrai projet
@@ -102,7 +102,9 @@ C'est tout. Contrairement à l'install native, il n'y a **aucune trace** ailleur
 ```
 opencode-docker/
 ├── Dockerfile            # image de base + git/bash/node, user non-root
-├── docker-compose.yml    # mounts, volumes, env, security_opt
+├── compose.yml           # point d'entrée : include + volumes partagés
+├── compose.base.yml      # service opencode (TUI / one-shot, profil "tui")
+├── compose.serve.yml     # service opencode-serve (long-lived, port 4096)
 ├── config/
 │   └── opencode.json     # permissions strictes (montée en RO)
 ├── .env                  # tes clés (gitignoré)
@@ -122,9 +124,10 @@ docker compose run --rm opencode debug config   # vérifier la config résolue
 docker compose run --rm opencode debug agents   # agents/subagents résolus
 docker compose logs               # logs
 
-# Serveur long-lived (sessions qui survivent, liste des modèles dispo)
-docker compose --profile serve up -d opencode-serve
-docker compose --profile serve down
+# Serveur long-lived (service par défaut du projet)
+docker compose up -d               # démarrer / recréer le serveur
+docker compose ps                  # état
+docker compose logs -f opencode-serve
 ```
 
 ## Plugins globaux

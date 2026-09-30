@@ -1,0 +1,46 @@
+# Fragment : service "opencode-serve" (service par défaut du projet)
+# Instance long-lived : une seule session Docker vit en continu, donc les
+# sessions OpenCode, la liste des modèles et l'API survivent d'une
+# invocation à l'autre — pas de conteneur recréé en cours de génération.
+#
+#   démarrage : docker compose up -d
+#   état      : docker compose ps
+#   arrêt     : docker compose down          (purge : down -v)
+#   logs      : docker compose logs -f opencode-serve
+#
+# Définition autonome : `extends` hériterait du profil "tui" du service
+# TUI, et ce service ne serait alors visible ni par `up` ni par `down`.
+# Les montages et l'environnement sont donc repris de compose.base.yml —
+# si ce fichier change, tenir l'autre à jour.
+
+services:
+  opencode-serve:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: opencode-local:2.0.18
+    command: ["serve", "--hostname", "0.0.0.0"]
+    ports:
+      - "4096:4096"
+    restart: unless-stopped
+
+    hostname: ${OC_NAME:-workspace}
+    working_dir: /projects/${OC_NAME:-workspace}
+
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      OPENCODE_CONFIG: /config/opencode.json
+      TZ: Europe/Paris
+
+    volumes:
+      - oc-data:/home/opencode/.local/share/opencode
+      - oc-cache:/home/opencode/.cache/opencode
+      - oc-config:/home/opencode/.config/opencode
+      - ./config/opencode.json:/config/opencode.json:ro
+      - "${PROJECT_DIR:-./workspace}:/projects/${OC_NAME:-workspace}"
+
+    security_opt: []
+    read_only: false
+    init: true

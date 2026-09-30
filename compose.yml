@@ -1,0 +1,26 @@
+# Projet : opencode-docker — point d'entrée Compose
+#
+#   TUI         docker compose run --rm opencode
+#   one-shot    docker compose run --rm opencode run "..."
+#   serveur     docker compose up -d           (long-lived, port 4096)
+#   état        docker compose ps
+#   config      docker compose config
+#   purge       docker compose down -v         (supprime TOUT, volumes compris)
+#
+# L'architecture est découpée pour garder des fichiers courts :
+#   compose.base.yml    service opencode    (TUI / one-shot, profil "tui")
+#   compose.serve.yml   service opencode-serve (service par défaut)
+#   compose.yml         ce fichier : include des fragments + volumes partagés
+
+name: opencode
+
+include:
+  - compose.base.yml
+  - compose.serve.yml
+
+# Volumes nommés partagés par les deux services — persistants par nature,
+# supprimés uniquement par `down -v`.
+volumes:
+  oc-data:    # sessions, auth, base SQLite
+  oc-cache:   # plugins npm installés
+  oc-config:  # config globale + agents (~/.config/opencode)

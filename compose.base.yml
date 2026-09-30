@@ -1,0 +1,51 @@
+# Fragment : service "opencode" (TUI + one-shot)
+# Inclus par compose.yml — ne pas lancer directement avec `docker compose -f`.
+#
+# Rôles :
+#   défaut  : user "opencode" (uid 1000), sudo sans mot de passe
+#   root    : docker compose run --rm --user root opencode ...
+#   interne : sudo -i   (dans le conteneur)
+#
+# NOTE : no-new-privileges est volontairement ABSENT — il bloquerait sudo
+# (escalade setuid). L'isolation vient du conteneur et des seuls montages.
+
+services:
+  opencode:
+    # Utilisé uniquement via `docker compose run` (TUI ou one-shot) : le
+    # profil évite qu'un `up -d` lance un conteneur TUI sans terminal.
+    # `docker compose run` active automatiquement le profil du service ciblé.
+    profiles: ["tui"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: opencode-local:2.0.18
+    stdin_open: true      # requis pour le TUI
+    tty: true
+
+    # Le projet est monté sous SON NOM : le TUI, les sessions OpenCode et
+    # les logs identifient le bon dossier. OC_NAME est calculé par
+    # opencode.bat (défaut : workspace).
+    hostname: ${OC_NAME:-workspace}
+    working_dir: /projects/${OC_NAME:-workspace}
+
+    # Clés API lues depuis .env (jamais dans l'image ni dans le compose)
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      OPENCODE_CONFIG: /config/opencode.json
+      TZ: Europe/Paris
+
+    volumes:
+      # État OpenCode nommé — purgé par `docker compose down -v`
+      - oc-data:/home/opencode/.local/share/opencode   # sessions, auth
+      - oc-cache:/home/opencode/.cache/opencode        # plugins npm
+      - oc-config:/home/opencode/.config/opencode      # config globale, agents
+      # Config versionnée montée en lecture seule (l'agent ne la modifie pas)
+      - ./config/opencode.json:/config/opencode.json:ro
+      # Projet monté sous son nom réel
+      - "${PROJECT_DIR:-./workspace}:/projects/${OC_NAME:-workspace}"
+
+    security_opt: []
+    read_only: false
+    init: true            # tini : récolte les zombies
